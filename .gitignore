@@ -1,0 +1,10 @@
+node_modules/
+.env
+data/data.json
+*.log
+.DS_Store
+
+# Projet JAM (Next.js) partage temporairement ce dossier — ne jamais l'inclure ici.
+src/app/
+src/components/
+src/lib/

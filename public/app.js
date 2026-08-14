@@ -457,7 +457,7 @@ async function adminHideReview(id){ await api(`/admin/reviews/${id}/hide`,{metho
 async function adminRestoreReview(id){ await api(`/admin/reviews/${id}/restore`,{method:'POST'}); showToast('Avis restauré.'); await loadAdminData(); }
 
 // ---------- Modals ----------
-let modalState = { reviewTargetId:null, propTargetMissionId:null, boostPack:null, boostAmount:0, boostListingId:null, creditType:null, creditQty:0, creditAmount:0, editingListingId:null };
+let modalState = { reviewTargetId:null, propTargetMissionId:null, boostPack:null, boostAmount:0, boostListingId:null, creditType:null, creditQty:0, creditAmount:0, editingListingId:null, confirmAction:null };
 
 function renderModals() {
   return `
@@ -525,7 +525,27 @@ function renderModals() {
     <div class="field"><label>Référence de transaction</label><input id="c_ref" type="text"></div>
     <button class="submit-btn" onclick="submitCreditRequest()">Envoyer la demande</button>
   </div></div>
+
+  <div class="modal-overlay" id="modal-confirm"><div class="modal">
+    <button class="close-btn" onclick="closeModal('confirm')">✕</button>
+    <h2>Confirmer</h2><p class="sub" id="confirmMessage"></p>
+    <button class="submit-btn" style="background:var(--terracotta);" onclick="runConfirmedAction()">Confirmer</button>
+    <button class="btn-outline" style="margin-top:8px;" onclick="closeModal('confirm')">Annuler</button>
+  </div></div>
   `;
+}
+
+function openConfirmModal(message, action) {
+  modalState.confirmAction = action;
+  document.getElementById('confirmMessage').textContent = message;
+  openModal('confirm');
+}
+
+async function runConfirmedAction() {
+  const action = modalState.confirmAction;
+  modalState.confirmAction = null;
+  closeModal('confirm');
+  if (action) await action();
 }
 
 function myListings() { return state.ownListings; }
@@ -586,15 +606,16 @@ async function submitListing() {
   } catch(e){ showToast(e.message); }
 }
 
-async function confirmDeleteListing(id) {
-  if (!confirm('Supprimer définitivement ce profil ?')) return;
-  try {
-    await api(`/listings/${id}`, { method:'DELETE' });
-    showToast('Profil supprimé.');
-    await loadListings();
-    await loadOwnListings();
-    render();
-  } catch(e){ showToast(e.message); }
+function confirmDeleteListing(id) {
+  openConfirmModal('Supprimer définitivement ce profil ?', async () => {
+    try {
+      await api(`/listings/${id}`, { method:'DELETE' });
+      showToast('Profil supprimé.');
+      await loadListings();
+      await loadOwnListings();
+      render();
+    } catch(e){ showToast(e.message); }
+  });
 }
 
 function openReviewModal(id, nom) {

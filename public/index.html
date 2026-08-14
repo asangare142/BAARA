@@ -3,26 +3,122 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Baara — Trouve quelqu'un qui sait faire</title>
+<title>Baara — Trouve quelqu'un qui sait faire, ou fais-toi trouver</title>
+<meta name="description" content="Baara est la marketplace de services entre particuliers au Mali. Zéro commission — trouve un prestataire ou propose tes services en quelques minutes.">
 
-<link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#24406B">
 <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Baara">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/landing.css">
 </head>
 <body>
-<div class="wrap" id="app">
-  <div class="loading" style="padding:60px 20px;">Chargement de Baara…</div>
+
+<nav class="nav" id="nav">
+  <div class="nav-brand">Baara</div>
+  <a class="nav-cta" href="/app.html">Commencer</a>
+</nav>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="hero-badge">Bêta · Mali</span>
+    <h1>Trouve quelqu'un qui sait <span>faire</span>.<br>Ou fais-toi trouver.</h1>
+    <p class="lead">« Baara » veut dire travail en bambara. Une marketplace de services entre particuliers — zéro commission, mise en relation directe sur WhatsApp.</p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="/app.html">Commencer maintenant</a>
+      <a class="btn-ghost" href="#comment-ca-marche">Comment ça marche</a>
+    </div>
+    <div class="hero-scroll"><span>Découvrir</span><span class="arrow"></span></div>
+  </div>
+</header>
+
+<div class="marquee-wrap">
+  <div class="marquee" id="marquee"></div>
 </div>
-<div class="toast" id="toast"></div>
-<script src="/app.js"></script>
+
+<section class="block" id="quoi">
+  <div class="eyebrow reveal">Baara, c'est quoi</div>
+  <h2 class="reveal">Un annuaire de confiance, pas une agence.</h2>
+  <p class="desc reveal">Plombiers, couturières, chauffeurs, profs particuliers, traiteurs, techniciens... Baara connecte directement les Maliens qui cherchent un service à ceux qui savent le rendre — sans intermédiaire, sans commission sur ta prestation.</p>
+  <p class="desc reveal">Tu discutes, tu négocies et tu es payé en direct, comme si tu t'étais rencontrés par le bouche-à-oreille.</p>
+</section>
+
+<section class="block" id="comment-ca-marche">
+  <div class="eyebrow reveal">Comment ça marche</div>
+  <h2 class="reveal">Deux minutes suffisent pour démarrer.</h2>
+  <div class="how-grid">
+    <div class="how-card reveal">
+      <h3>Tu cherches un service</h3>
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div class="how-step-text"><strong>Cherche par catégorie</strong><span>Plombier, cours de maths, chauffeur, traiteur... filtre par métier ou mot-clé.</span></div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div class="how-step-text"><strong>Compare les profils</strong><span>Avis, tarifs indicatifs, badges de vérification — tu choisis en connaissance de cause.</span></div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div class="how-step-text"><strong>Contacte sur WhatsApp</strong><span>Discussion directe, sans intermédiaire ni frais cachés.</span></div>
+      </div>
+    </div>
+    <div class="how-card reveal">
+      <h3>Tu proposes tes services</h3>
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div class="how-step-text"><strong>Crée ton profil</strong><span>Gratuit, en quelques minutes — ta compétence, ton quartier, ton tarif.</span></div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div class="how-step-text"><strong>Sois visible</strong><span>Les clients de ta ville te trouvent directement dans leur recherche.</span></div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div class="how-step-text"><strong>Sois payé en direct</strong><span>Zéro commission prélevée sur ce que tu factures.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="commission">
+  <div class="commission-card reveal">
+    <div class="commission-stat">0%</div>
+    <p>Zéro commission, toujours. Baara se rémunère uniquement via des packs de visibilité optionnels et des crédits de mise en relation — jamais en prélevant sur ce que tu gagnes.</p>
+  </div>
+</section>
+
+<section class="block" id="confiance">
+  <div class="eyebrow reveal">Confiance</div>
+  <h2 class="reveal">Des profils vérifiés, pas des inconnus.</h2>
+  <div class="trust-row">
+    <div class="trust-item reveal">
+      <div class="badge-verifie">Vérifié</div>
+      <h4>Vérification manuelle</h4>
+      <p>Chaque demande de badge est contrôlée par l'équipe Baara avant validation — pas un simple clic.</p>
+    </div>
+    <div class="trust-item reveal">
+      <h4>Avis publics</h4>
+      <p>Les prestataires sont notés après chaque mission, avis visibles par tous.</p>
+    </div>
+    <div class="trust-item reveal">
+      <h4>Numéros protégés</h4>
+      <p>Le contact reste masqué tant que tu n'as pas choisi de débloquer un profil.</p>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta">
+  <h2 class="reveal">Prêt à commencer ?</h2>
+  <p class="reveal">Rejoins Baara aujourd'hui — c'est gratuit.</p>
+  <a class="btn-primary reveal" href="/app.html">Créer mon compte</a>
+</section>
+
+<footer>
+  <strong>Baara</strong> — le travail, trouvé simplement. Fait avec soin au Mali.
+</footer>
+
+<script src="/landing.js"></script>
 </body>
 </html>

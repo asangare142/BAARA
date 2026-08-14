@@ -1,5 +1,5 @@
-const CACHE = 'baara-shell-v2';
-const SHELL_FILES = ['/app.html', '/styles.css', '/app.js', '/manifest.webmanifest'];
+const CACHE = 'baara-shell-v3';
+const SHELL_FILES = ['/', '/app.html', '/styles.css', '/landing.css', '/app.js', '/landing.js', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -31,6 +31,6 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE).then((cache) => cache.put(request, copy));
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match('/app.html')))
+      .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
   );
 });

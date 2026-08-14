@@ -1,9 +1,3 @@
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
-}
-
 const CATEGORIES = [
   'Transport & véhicules','Bâtiment & réparation','Maison & entretien','Beauté & bien-être',
   'Couture & artisanat','Éducation & cours','Événements & cérémonies','Digital & technologie',

@@ -9,9 +9,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Amorçage : crée le compte admin unique si aucun n'existe encore.
-db.seedAdmin();
-
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/listings', require('./routes/listings'));
 app.use('/api/missions', require('./routes/missions'));
@@ -34,6 +31,11 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`\n🚀 Baara tourne sur http://localhost:${PORT}\n`);
-});
+
+(async () => {
+  await db.init();
+  db.seedAdmin(); // crée le compte admin unique si aucun n'existe encore
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Baara tourne sur http://localhost:${PORT}\n`);
+  });
+})();

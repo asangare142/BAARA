@@ -1,8 +1,16 @@
-// db.js — petite couche de persistance basée sur un fichier JSON.
-// Suffisant pour un pilote/test avec un nombre limité d'utilisateurs.
-// Pour une vraie montée en charge, remplacer par Postgres/MySQL plus tard
-// (la forme des fonctions ci-dessous — getAll/insert/update/find — reste
-// la même, seul le contenu changerait).
+// db.js — petite couche de persistance.
+// Toutes les routes passent par getAll/insert/findById/findOne/updateById/
+// deleteById, qui lisent et écrivent un objet unique tenu en mémoire
+// (`cachedDb`). Ça garde tout le reste du code (routes, auth) inchangé.
+//
+// Deux modes de stockage durable pour cet objet, selon que DATABASE_URL
+// est défini ou non :
+//  - DATABASE_URL défini (production, Render Postgres) : l'objet entier est
+//    persisté comme une seule ligne JSONB dans Postgres. Nécessaire car le
+//    disque local d'un service web Render n'est pas persistant sans plan
+//    payant — un simple fichier JSON local est effacé à chaque redémarrage.
+//  - DATABASE_URL absent (dev local) : fichier data/data.json comme avant,
+//    pratique pour tester sans dépendance externe.
 
 const fs = require('fs');
 const path = require('path');
@@ -21,6 +29,18 @@ const EMPTY_DB = {
   creditRequests: []
 };
 
+const USE_POSTGRES = !!process.env.DATABASE_URL;
+let pool = null;
+if (USE_POSTGRES) {
+  const { Pool } = require('pg');
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+}
+
+let cachedDb = null; // objet unique tenu en mémoire, source de vérité pour les lectures synchrones
+
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
@@ -28,19 +48,56 @@ function ensureDataFile() {
   }
 }
 
-function load() {
-  ensureDataFile();
-  const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    console.error('data.json corrompu, réinitialisation.', e);
-    return JSON.parse(JSON.stringify(EMPTY_DB));
+// Charge cachedDb au démarrage — à appeler une seule fois avant que le
+// serveur commence à accepter des requêtes (voir server.js).
+async function init() {
+  if (USE_POSTGRES) {
+    await pool.query(
+      'CREATE TABLE IF NOT EXISTS kv_store (key TEXT PRIMARY KEY, value JSONB NOT NULL)'
+    );
+    const { rows } = await pool.query('SELECT value FROM kv_store WHERE key = $1', ['baara']);
+    if (rows.length) {
+      cachedDb = rows[0].value;
+      console.log('✅ Données chargées depuis Postgres.');
+    } else {
+      cachedDb = JSON.parse(JSON.stringify(EMPTY_DB));
+      await persistToPostgres(cachedDb);
+      console.log('✅ Nouvelle base Postgres initialisée.');
+    }
+  } else {
+    ensureDataFile();
+    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    try {
+      cachedDb = JSON.parse(raw);
+    } catch (e) {
+      console.error('data.json corrompu, réinitialisation.', e);
+      cachedDb = JSON.parse(JSON.stringify(EMPTY_DB));
+    }
+    console.log('⚠️  DATABASE_URL non défini — stockage sur fichier local (data/data.json), non persistant sur Render sans disque payant.');
   }
 }
 
+function persistToPostgres(db) {
+  return pool
+    .query(
+      'INSERT INTO kv_store (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+      ['baara', JSON.stringify(db)]
+    )
+    .catch((e) => console.error('Erreur de sauvegarde Postgres :', e));
+}
+
+function load() {
+  if (!cachedDb) throw new Error('db.init() doit être appelé avant toute lecture.');
+  return cachedDb;
+}
+
 function save(db) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
+  cachedDb = db;
+  if (USE_POSTGRES) {
+    persistToPostgres(db); // fire-and-forget : les lectures restent synchrones via cachedDb
+  } else {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
+  }
 }
 
 // --- Génériques ---
@@ -121,6 +178,7 @@ function seedAdmin() {
 }
 
 module.exports = {
+  init,
   load,
   save,
   getAll,

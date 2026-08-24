@@ -102,4 +102,17 @@ router.get('/users', (req, res) => {
   res.json({ users });
 });
 
+// --- Suppression d'un utilisateur (nettoyage de comptes test/spam) ---
+router.delete('/users/:id', (req, res) => {
+  const target = db.findById('users', req.params.id);
+  if (!target) return res.status(404).json({ error: 'Utilisateur introuvable.' });
+  if (target.isAdmin) return res.status(403).json({ error: 'Impossible de supprimer un compte admin.' });
+
+  db.getAll('listings')
+    .filter((l) => l.userId === target.id)
+    .forEach((l) => db.deleteById('listings', l.id));
+  db.deleteById('users', target.id);
+  res.json({ ok: true });
+});
+
 module.exports = router;

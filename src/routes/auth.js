@@ -57,4 +57,19 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ user: publicUser(req.user) });
 });
 
+router.post('/change-password', requireAuth, (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Mot de passe actuel et nouveau mot de passe requis.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Le nouveau mot de passe doit faire au moins 6 caractères.' });
+  }
+  if (!verifyPassword(currentPassword, req.user.passwordHash)) {
+    return res.status(401).json({ error: 'Mot de passe actuel incorrect.' });
+  }
+  db.updateById('users', req.user.id, { passwordHash: hashPassword(newPassword) });
+  res.json({ ok: true });
+});
+
 module.exports = router;

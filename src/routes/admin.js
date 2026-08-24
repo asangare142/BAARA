@@ -1,8 +1,13 @@
 const express = require('express');
+const crypto = require('crypto');
 const db = require('../db');
-const { requireAuth, requireAdmin } = require('../auth');
+const { requireAuth, requireAdmin, hashPassword } = require('../auth');
 
 const router = express.Router();
+
+function generatePassword() {
+  return crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12);
+}
 
 // Toutes les routes ci-dessous exigent : (1) être connecté, (2) être admin.
 // requireAdmin re-vérifie en base — pas seulement le contenu du token —
@@ -21,6 +26,7 @@ router.get('/stats', (req, res) => {
     totalMissions: missions.length,
     pendingPackRequests: db.getAll('packRequests').filter((r) => r.status === 'pending').length,
     pendingCreditRequests: db.getAll('creditRequests').filter((r) => r.status === 'pending').length,
+    pendingPasswordResetRequests: db.getAll('passwordResetRequests').filter((r) => r.status === 'pending').length,
     flaggedReviews: db.getAll('reviews').filter((r) => r.status === 'flagged').length,
     byCategorie: listings.reduce((acc, l) => {
       acc[l.categorie] = (acc[l.categorie] || 0) + 1;
@@ -94,6 +100,31 @@ router.post('/reviews/:id/restore', (req, res) => {
   const updated = db.updateById('reviews', req.params.id, { status: 'visible' });
   if (!updated) return res.status(404).json({ error: 'Avis introuvable.' });
   res.json({ review: updated });
+});
+
+// --- Demandes de réinitialisation de mot de passe ---
+// Pas d'email/SMS configuré : l'admin vérifie l'identité (WhatsApp, etc.)
+// puis approuve — un nouveau mot de passe est généré et renvoyé une seule
+// fois dans la réponse, à relayer manuellement à la personne.
+router.get('/password-reset-requests', (req, res) => {
+  const requests = db.getAll('passwordResetRequests').filter((r) => r.status === 'pending');
+  res.json({ requests });
+});
+router.post('/password-reset-requests/:id/approve', (req, res) => {
+  const request = db.findById('passwordResetRequests', req.params.id);
+  if (!request) return res.status(404).json({ error: 'Demande introuvable.' });
+  const user = db.findById('users', request.userId);
+  if (!user) return res.status(404).json({ error: 'Utilisateur introuvable.' });
+
+  const newPassword = generatePassword();
+  db.updateById('users', user.id, { passwordHash: hashPassword(newPassword) });
+  db.updateById('passwordResetRequests', request.id, { status: 'approved' });
+  res.json({ newPassword, telephone: user.telephone, nom: user.nom });
+});
+router.post('/password-reset-requests/:id/reject', (req, res) => {
+  const updated = db.updateById('passwordResetRequests', req.params.id, { status: 'rejected' });
+  if (!updated) return res.status(404).json({ error: 'Demande introuvable.' });
+  res.json({ request: updated });
 });
 
 // --- Liste des utilisateurs (lecture seule) ---

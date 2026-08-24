@@ -149,9 +149,34 @@ function renderAuth() {
         <div class="auth-switch">
           ${isLogin ? `Pas encore de compte ? <a onclick="state.authMode='signup'; render();">Inscris-toi</a>` : `Déjà un compte ? <a onclick="state.authMode='login'; render();">Connecte-toi</a>`}
         </div>
+        ${isLogin ? `<div class="auth-switch"><a onclick="openForgotPasswordModal()">Mot de passe oublié ?</a></div>` : ''}
       </div>
     </main>
+    <div class="modal-overlay" id="modal-forgotPassword"><div class="modal">
+      <button class="close-btn" onclick="closeModal('forgotPassword')">✕</button>
+      <h2>Mot de passe oublié</h2>
+      <p class="sub">Indique ton numéro — l'administration vérifiera ton identité et te renverra un nouveau mot de passe.</p>
+      <div id="forgotError" style="color:var(--terracotta); font-size:13px; margin-bottom:10px;"></div>
+      <div class="field"><label>Numéro de téléphone</label><input id="fp_tel" type="text" placeholder="Ex : +223 7X XX XX XX"></div>
+      <button class="submit-btn" onclick="submitForgotPassword()">Envoyer la demande</button>
+    </div></div>
   `;
+}
+
+function openForgotPasswordModal() {
+  document.getElementById('modal-forgotPassword').classList.add('open');
+}
+
+async function submitForgotPassword() {
+  const telephone = document.getElementById('fp_tel').value.trim();
+  if (!telephone) { document.getElementById('forgotError').textContent = 'Numéro requis.'; return; }
+  try {
+    const { message } = await api('/auth/request-password-reset', { method: 'POST', body: JSON.stringify({ telephone }) });
+    document.getElementById('modal-forgotPassword').classList.remove('open');
+    showToast(message || 'Demande envoyée.');
+  } catch (e) {
+    document.getElementById('forgotError').textContent = e.message;
+  }
 }
 
 async function doSignup() {
@@ -365,21 +390,23 @@ function renderWallet() {
 }
 
 // ---------- Admin ----------
-let adminData = { stats:null, pendingListings:[], packRequests:[], creditRequests:[], flaggedReviews:[] };
+let adminData = { stats:null, pendingListings:[], packRequests:[], creditRequests:[], flaggedReviews:[], passwordResetRequests:[] };
 
 async function loadAdminData() {
-  const [stats, pv, pr, cr, fr] = await Promise.all([
+  const [stats, pv, pr, cr, fr, prr] = await Promise.all([
     api('/admin/stats'),
     api('/admin/listings/pending-verification'),
     api('/admin/pack-requests'),
     api('/admin/credit-requests'),
-    api('/admin/reviews/flagged')
+    api('/admin/reviews/flagged'),
+    api('/admin/password-reset-requests')
   ]);
   adminData.stats = stats;
   adminData.pendingListings = pv.listings;
   adminData.packRequests = pr.requests.filter(r => r.status === 'pending');
   adminData.creditRequests = cr.requests.filter(r => r.status === 'pending');
   adminData.flaggedReviews = fr.reviews;
+  adminData.passwordResetRequests = prr.requests;
   render();
 }
 
@@ -392,7 +419,7 @@ function renderAdmin() {
       <div class="stat-box"><div class="num">${s.totalUsers}</div><div class="label">Utilisateurs</div></div>
       <div class="stat-box"><div class="num">${s.totalListings}</div><div class="label">Profils</div></div>
       <div class="stat-box"><div class="num">${s.totalMissions}</div><div class="label">Missions</div></div>
-      <div class="stat-box"><div class="num">${s.pendingPackRequests + s.pendingCreditRequests}</div><div class="label">Demandes en attente</div></div>
+      <div class="stat-box"><div class="num">${s.pendingPackRequests + s.pendingCreditRequests + s.pendingPasswordResetRequests}</div><div class="label">Demandes en attente</div></div>
     </div>
 
     <div class="section-label">Profils à vérifier (${adminData.pendingListings.length})</div>
@@ -428,6 +455,26 @@ function renderAdmin() {
       </div>
     `).join('') : `<div class="empty">Aucune demande en attente.</div>`}
 
+    <div class="section-label">Mots de passe oubliés (${adminData.passwordResetRequests.length})</div>
+    ${lastPasswordReset ? `
+      <div class="admin-row" style="border:1.5px solid var(--ochre);">
+        <div class="admin-row-top"><span class="admin-row-title">Nouveau mot de passe pour ${escapeHtml(lastPasswordReset.nom)}</span></div>
+        <div class="admin-row-meta">${escapeHtml(lastPasswordReset.telephone)} — à relayer par WhatsApp ou appel :</div>
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:700; color:var(--indigo); background:var(--sand-deep); padding:8px 12px; border-radius:8px; margin-top:6px;">${escapeHtml(lastPasswordReset.newPassword)}</div>
+        <div class="admin-actions"><button class="btn-reject" onclick="lastPasswordReset=null; render();">J'ai noté, masquer</button></div>
+      </div>
+    ` : ''}
+    ${adminData.passwordResetRequests.length ? adminData.passwordResetRequests.map(r => `
+      <div class="admin-row">
+        <div class="admin-row-top"><span class="admin-row-title">${escapeHtml(r.nom)}</span></div>
+        <div class="admin-row-meta">${escapeHtml(r.telephone)}</div>
+        <div class="admin-actions">
+          <button class="btn-approve" onclick="adminApprovePasswordReset('${r.id}')">Générer un nouveau mot de passe</button>
+          <button class="btn-reject" onclick="adminRejectPasswordReset('${r.id}')">Rejeter</button>
+        </div>
+      </div>
+    `).join('') : `<div class="empty">Aucune demande en attente.</div>`}
+
     <div class="section-label">Avis signalés (${adminData.flaggedReviews.length})</div>
     ${adminData.flaggedReviews.length ? adminData.flaggedReviews.map(r => `
       <div class="admin-row">
@@ -449,6 +496,14 @@ async function adminApproveCredit(id){ await api(`/admin/credit-requests/${id}/a
 async function adminRejectCredit(id){ await api(`/admin/credit-requests/${id}/reject`,{method:'POST'}); showToast('Demande rejetée.'); await loadAdminData(); }
 async function adminHideReview(id){ await api(`/admin/reviews/${id}/hide`,{method:'POST'}); showToast('Avis masqué.'); await loadAdminData(); }
 async function adminRestoreReview(id){ await api(`/admin/reviews/${id}/restore`,{method:'POST'}); showToast('Avis restauré.'); await loadAdminData(); }
+
+let lastPasswordReset = null;
+async function adminApprovePasswordReset(id){
+  lastPasswordReset = await api(`/admin/password-reset-requests/${id}/approve`,{method:'POST'});
+  showToast('Nouveau mot de passe généré.');
+  await loadAdminData();
+}
+async function adminRejectPasswordReset(id){ await api(`/admin/password-reset-requests/${id}/reject`,{method:'POST'}); showToast('Demande rejetée.'); await loadAdminData(); }
 
 // ---------- Modals ----------
 let modalState = { reviewTargetId:null, propTargetMissionId:null, boostPack:null, boostAmount:0, boostListingId:null, creditType:null, creditQty:0, creditAmount:0, editingListingId:null, confirmAction:null };

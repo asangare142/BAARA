@@ -26,7 +26,8 @@ const EMPTY_DB = {
   missions: [],
   reviews: [],
   packRequests: [],
-  creditRequests: []
+  creditRequests: [],
+  passwordResetRequests: []
 };
 
 const USE_POSTGRES = !!process.env.DATABASE_URL;
@@ -108,6 +109,7 @@ function getAll(collection) {
 
 function insert(collection, record) {
   const db = load();
+  if (!db[collection]) db[collection] = []; // tolère une collection ajoutée après coup, absente des données existantes
   const withId = { id: record.id || uuid(), createdAt: Date.now(), ...record };
   db[collection].push(withId);
   save(db);

@@ -57,6 +57,33 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ user: publicUser(req.user) });
 });
 
+// Mot de passe oublié : crée une demande vue par l'admin (pas d'email/SMS
+// configuré) — l'admin vérifie l'identité (WhatsApp, etc.) puis approuve.
+router.post('/request-password-reset', (req, res) => {
+  const { telephone } = req.body || {};
+  if (!telephone) {
+    return res.status(400).json({ error: 'Numéro de téléphone requis.' });
+  }
+  const user = db.findOne('users', (u) => u.telephone === String(telephone).trim());
+  if (user) {
+    const alreadyPending = db.findOne(
+      'passwordResetRequests',
+      (r) => r.userId === user.id && r.status === 'pending'
+    );
+    if (!alreadyPending) {
+      db.insert('passwordResetRequests', {
+        userId: user.id,
+        nom: user.nom,
+        telephone: user.telephone,
+        status: 'pending'
+      });
+    }
+  }
+  // Message identique que le numéro existe ou non, pour ne pas révéler
+  // quels numéros sont inscrits.
+  res.json({ ok: true, message: 'Si ce numéro est inscrit, ta demande a été transmise à l’administration.' });
+});
+
 router.post('/change-password', requireAuth, (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (!currentPassword || !newPassword) {

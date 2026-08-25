@@ -185,12 +185,12 @@ async function doSignup() {
   const email = document.getElementById('a_email').value.trim();
   const password = document.getElementById('a_pass').value;
   try {
-    const { token, user } = await api('/auth/signup', { method: 'POST', body: JSON.stringify({ nom, telephone, email, password }) });
+    const { token, user, welcomeCredits } = await api('/auth/signup', { method: 'POST', body: JSON.stringify({ nom, telephone, email, password }) });
     state.token = token; state.user = user;
     localStorage.setItem('baara_token', token);
     await loadListings(); await loadMissions(); await loadOwnListings();
     render();
-    showToast('Bienvenue sur Baara !');
+    showToast(welcomeCredits ? `Bienvenue sur Baara ! 🎁 ${welcomeCredits} crédits contact offerts.` : 'Bienvenue sur Baara !');
   } catch (e) { document.getElementById('authError').textContent = e.message; }
 }
 
@@ -299,11 +299,6 @@ function renderOwnListingCard(l) {
   if (l.verified) badgeHtml += '<div class="badge badge-verifie">Vérifié</div>';
   if (pack !== 'standard') badgeHtml += `<div class="badge badge-premium">${PACK_LABEL[pack] || pack}</div>`;
   if (l.status === 'hidden') badgeHtml += '<div class="badge badge-sponsor">Masqué par l\'admin</div>';
-  let welcomeNote = '';
-  if (l.welcomePack && l.packExpiresAt) {
-    const daysLeft = Math.max(1, Math.ceil((l.packExpiresAt - Date.now()) / 86400000));
-    welcomeNote = `<div class="card-rating" style="color:var(--green);">🎁 Pack ${PACK_LABEL[pack] || pack} offert — encore ${daysLeft} jour${daysLeft>1?'s':''}</div>`;
-  }
 
   return `
     <div class="card">
@@ -318,7 +313,6 @@ function renderOwnListingCard(l) {
       </div>
       ${l.description ? `<div class="card-desc">${escapeHtml(l.description)}</div>` : ''}
       <div class="card-rating">${avg ? `★ ${avg} (${l.reviewCount} avis)` : "Pas encore d'avis"}</div>
-      ${welcomeNote}
       <div class="card-actions">
         <button class="btn-outline" onclick="openEditListingModal('${l.id}')">Modifier</button>
         <button class="btn-reject" onclick="confirmDeleteListing('${l.id}')">Supprimer</button>
@@ -674,8 +668,8 @@ async function submitListing() {
       await api(`/listings/${modalState.editingListingId}`, { method:'PUT', body: JSON.stringify(body) });
       showToast('Profil mis à jour !');
     } else {
-      const { welcomePack } = await api('/listings', { method:'POST', body: JSON.stringify(body) });
-      showToast(welcomePack ? '🎁 Profil publié ! Pack Business offert pendant 15 jours.' : 'Profil publié !');
+      await api('/listings', { method:'POST', body: JSON.stringify(body) });
+      showToast('Profil publié !');
     }
     closeModal('createListing');
     await loadListings();

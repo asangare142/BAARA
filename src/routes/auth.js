@@ -4,6 +4,13 @@ const { hashPassword, verifyPassword, signToken, publicUser, requireAuth } = req
 
 const router = express.Router();
 
+// Cadeau de bienvenue : les 15 premiers inscrits reçoivent 5 crédits
+// contact gratuits (pas de limite de durée) — encourage à essayer le
+// déblocage de contact sans casser le système de crédits payants pour
+// tout le monde après.
+const WELCOME_CREDITS_LIMIT = 15;
+const WELCOME_CREDITS_AMOUNT = 5;
+
 // Inscription publique. isAdmin est TOUJOURS false ici, en dur — aucune façon
 // pour un utilisateur normal de s'auto-promouvoir admin via cette route.
 router.post('/signup', (req, res) => {
@@ -21,6 +28,9 @@ router.post('/signup', (req, res) => {
     return res.status(409).json({ error: 'Un compte existe déjà avec ce numéro.' });
   }
 
+  const registeredCount = db.getAll('users').filter((u) => !u.isAdmin).length;
+  const isWelcomeEligible = registeredCount < WELCOME_CREDITS_LIMIT;
+
   const user = db.insert('users', {
     nom: String(nom).trim(),
     telephone: String(telephone).trim(),
@@ -28,12 +38,12 @@ router.post('/signup', (req, res) => {
     passwordHash: hashPassword(password),
     isAdmin: false,
     isVerified: false,
-    creditsContact: 0,
+    creditsContact: isWelcomeEligible ? WELCOME_CREDITS_AMOUNT : 0,
     creditsMessage: 0
   });
 
   const token = signToken(user);
-  res.status(201).json({ token, user: publicUser(user) });
+  res.status(201).json({ token, user: publicUser(user), welcomeCredits: isWelcomeEligible ? WELCOME_CREDITS_AMOUNT : 0 });
 });
 
 router.post('/login', (req, res) => {

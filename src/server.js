@@ -32,9 +32,22 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
+// Migration ponctuelle : le pack de bienvenue automatique pour les 15
+// premiers prestataires a été retiré (remplacé par des crédits contact
+// gratuits) — repasse en standard les profils qui l'avaient déjà reçu.
+// Ne fait plus rien une fois que ces profils sont nettoyés.
+function migrateAwayFromWelcomePack() {
+  const toReset = db.getAll('listings').filter((l) => l.welcomePack);
+  toReset.forEach((l) => db.updateById('listings', l.id, { pack: 'standard', welcomePack: false, packExpiresAt: null }));
+  if (toReset.length) {
+    console.log(`🧹 ${toReset.length} profil(s) repassé(s) en standard (retrait du pack de bienvenue).`);
+  }
+}
+
 (async () => {
   await db.init();
   db.seedAdmin(); // crée le compte admin unique si aucun n'existe encore
+  migrateAwayFromWelcomePack();
   app.listen(PORT, () => {
     console.log(`\n🚀 Baara tourne sur http://localhost:${PORT}\n`);
   });

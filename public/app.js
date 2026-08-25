@@ -261,7 +261,7 @@ function renderListingCard(l) {
   if (!l.contactLocked && waNum) {
     contactBtn = `<button class="btn-contact" onclick="window.open('https://wa.me/223${waNum}')">WhatsApp</button>`;
   } else {
-    contactBtn = `<button class="btn-lock" onclick="startConversation('${l.id}')">💬 Démarrer une conversation (1 crédit)</button>`;
+    contactBtn = `<button class="btn-lock" onclick="startConversation('${l.id}')">🔒 Débloquer la conversation (1 crédit)</button>`;
   }
 
   return `
@@ -365,8 +365,8 @@ function confirmDeleteMission(id) {
 // ---------- Messagerie interne ----------
 async function startConversation(listingId) {
   try {
-    const { conversation, creditsMessage } = await api('/conversations', { method:'POST', body: JSON.stringify({ listingId }) });
-    if (creditsMessage !== undefined) state.user.creditsMessage = creditsMessage;
+    const { conversation, creditsContact } = await api('/conversations', { method:'POST', body: JSON.stringify({ listingId }) });
+    if (creditsContact !== undefined) state.user.creditsContact = creditsContact;
     await loadConversations();
     await openConversation(conversation.id);
     switchView('messages');

@@ -8,10 +8,10 @@ function assertParticipant(conversation, userId) {
   return conversation.clientUserId === userId || conversation.providerUserId === userId;
 }
 
-// Démarre (ou retrouve) une conversation avec un profil prestataire.
-// Coûte 1 crédit message la première fois ; gratuit ensuite pour
-// continuer à échanger avec la même personne — on ne révèle jamais son
-// numéro, tout se passe dans l'app.
+// Débloque (ou retrouve) une conversation avec un profil prestataire.
+// Coûte 1 crédit contact la première fois — c'est ce qui "débloque" la
+// personne ; gratuit ensuite pour continuer à échanger avec elle. On ne
+// révèle jamais son numéro, tout se passe dans l'app.
 router.post('/', requireAuth, (req, res) => {
   const { listingId } = req.body || {};
   const listing = db.findById('listings', listingId);
@@ -26,10 +26,10 @@ router.post('/', requireAuth, (req, res) => {
   );
   if (existing) return res.json({ conversation: existing });
 
-  if ((req.user.creditsMessage || 0) <= 0) {
-    return res.status(402).json({ error: 'Plus de crédits message — achète un pack pour continuer.' });
+  if ((req.user.creditsContact || 0) <= 0) {
+    return res.status(402).json({ error: 'Plus de crédits contact — achète un pack pour continuer.' });
   }
-  const updatedUser = db.updateById('users', req.user.id, { creditsMessage: req.user.creditsMessage - 1 });
+  const updatedUser = db.updateById('users', req.user.id, { creditsContact: req.user.creditsContact - 1 });
 
   const conversation = db.insert('conversations', {
     listingId: listing.id,
@@ -39,7 +39,7 @@ router.post('/', requireAuth, (req, res) => {
     providerUserId: listing.userId
   });
 
-  res.status(201).json({ conversation, creditsMessage: updatedUser.creditsMessage });
+  res.status(201).json({ conversation, creditsContact: updatedUser.creditsContact });
 });
 
 // Mes conversations, que je sois le client ou le prestataire contacté.

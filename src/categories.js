@@ -23,4 +23,16 @@ const PACKS = {
 
 const FREE_CONNEXIONS = 3;
 
-module.exports = { CATEGORIES, PACKS, FREE_CONNEXIONS };
+// Cadeau de bienvenue : les 15 premiers inscrits reçoivent des crédits gratuits.
+const WELCOME_CREDITS_LIMIT = 15;
+const WELCOME_CONTACT_CREDITS = 2;
+const WELCOME_MESSAGE_CREDITS = 5;
+
+module.exports = {
+  CATEGORIES,
+  PACKS,
+  FREE_CONNEXIONS,
+  WELCOME_CREDITS_LIMIT,
+  WELCOME_CONTACT_CREDITS,
+  WELCOME_MESSAGE_CREDITS
+};

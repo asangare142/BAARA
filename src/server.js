@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 
 const db = require('./db');
+const { WELCOME_CREDITS_LIMIT, WELCOME_CONTACT_CREDITS, WELCOME_MESSAGE_CREDITS } = require('./categories');
 
 const app = express();
 app.use(cors());
@@ -44,10 +45,31 @@ function migrateAwayFromWelcomePack() {
   }
 }
 
+// Migration ponctuelle : accorde rétroactivement les crédits de bienvenue
+// aux comptes créés avant la mise en place de ce cadeau, dans la limite
+// des 15 premiers inscrits (par ordre de création). Ne touche pas les
+// comptes qui les ont déjà reçus.
+function grantWelcomeCreditsRetroactively() {
+  const users = db.getAll('users')
+    .filter((u) => !u.isAdmin)
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  const eligible = users.slice(0, WELCOME_CREDITS_LIMIT).filter((u) => !u.welcomeCreditsGranted);
+  eligible.forEach((u) => db.updateById('users', u.id, {
+    creditsContact: (u.creditsContact || 0) + WELCOME_CONTACT_CREDITS,
+    creditsMessage: (u.creditsMessage || 0) + WELCOME_MESSAGE_CREDITS,
+    welcomeCreditsGranted: true
+  }));
+  if (eligible.length) {
+    console.log(`🎁 Crédits de bienvenue accordés rétroactivement à ${eligible.length} compte(s) existant(s).`);
+  }
+}
+
 (async () => {
   await db.init();
   db.seedAdmin(); // crée le compte admin unique si aucun n'existe encore
   migrateAwayFromWelcomePack();
+  grantWelcomeCreditsRetroactively();
   app.listen(PORT, () => {
     console.log(`\n🚀 Baara tourne sur http://localhost:${PORT}\n`);
   });

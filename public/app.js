@@ -190,7 +190,7 @@ async function doSignup() {
     localStorage.setItem('baara_token', token);
     await loadListings(); await loadMissions(); await loadOwnListings();
     render();
-    showToast(welcomeCredits ? `Bienvenue sur Baara ! 🎁 ${welcomeCredits} crédits contact offerts.` : 'Bienvenue sur Baara !');
+    showToast(welcomeCredits ? `Bienvenue sur Baara ! 🎁 ${welcomeCredits.contact} crédits contact + ${welcomeCredits.message} crédits message offerts.` : 'Bienvenue sur Baara !');
   } catch (e) { document.getElementById('authError').textContent = e.message; }
 }
 
@@ -383,7 +383,7 @@ function renderBoost() {
         <button class="btn-pack" onclick="openBoostModal('${p.key}','${p.label}',${p.price.replace(/\s/g,'')})">Choisir</button>
       </div>
     `).join('')}
-    <div class="payflow"><strong>Comment payer ?</strong><br>Envoie le montant via Orange Money/Wave, renseigne ta référence de transaction, un admin valide sous 24h.</div>
+    <div class="payflow"><strong>Comment payer ?</strong><br>Envoie le montant au <strong>+223 72 06 50 26</strong> via Orange Money, Wave ou Tap Tap Send, renseigne ta référence de transaction, un admin valide sous 24h.</div>
   `;
 }
 
@@ -585,7 +585,7 @@ function renderModals() {
     <button class="close-btn" onclick="closeModal('boost')">✕</button>
     <h2 id="boostTitle">Activer un pack</h2><p class="sub">Choisis ton profil à booster.</p>
     <div class="field"><label>Quel profil ?</label><select id="b_profile">${myListings().map(l=>`<option value="${l.id}">${escapeHtml(l.nom)} — ${escapeHtml(l.competence)}</option>`).join('') || "<option value=''>Crée un profil d'abord</option>"}</select></div>
-    <div class="payflow" style="margin-bottom:14px;">Envoie <strong id="boostAmountLabel"></strong> au <strong>+223 72 06 50 26 (Orange Money)</strong>, puis colle ta référence.</div>
+    <div class="payflow" style="margin-bottom:14px;">Envoie <strong id="boostAmountLabel"></strong> au <strong>+223 72 06 50 26 (Orange Money, Wave ou Tap Tap Send)</strong>, puis colle ta référence.</div>
     <div class="field"><label>Référence de transaction</label><input id="b_ref" type="text"></div>
     <button class="submit-btn" onclick="submitBoostRequest()">Envoyer la demande</button>
   </div></div>
@@ -593,7 +593,7 @@ function renderModals() {
   <div class="modal-overlay" id="modal-credit"><div class="modal">
     <button class="close-btn" onclick="closeModal('credit')">✕</button>
     <h2 id="creditTitle">Acheter des crédits</h2>
-    <div class="payflow" style="margin-bottom:14px;">Envoie <strong id="creditAmountLabel"></strong> au <strong>+223 72 06 50 26 (Orange Money)</strong>, puis colle ta référence.</div>
+    <div class="payflow" style="margin-bottom:14px;">Envoie <strong id="creditAmountLabel"></strong> au <strong>+223 72 06 50 26 (Orange Money, Wave ou Tap Tap Send)</strong>, puis colle ta référence.</div>
     <div class="field"><label>Référence de transaction</label><input id="c_ref" type="text"></div>
     <button class="submit-btn" onclick="submitCreditRequest()">Envoyer la demande</button>
   </div></div>

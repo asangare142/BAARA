@@ -1,15 +1,9 @@
 const express = require('express');
 const db = require('../db');
 const { hashPassword, verifyPassword, signToken, publicUser, requireAuth } = require('../auth');
+const { WELCOME_CREDITS_LIMIT, WELCOME_CONTACT_CREDITS, WELCOME_MESSAGE_CREDITS } = require('../categories');
 
 const router = express.Router();
-
-// Cadeau de bienvenue : les 15 premiers inscrits reçoivent 5 crédits
-// contact gratuits (pas de limite de durée) — encourage à essayer le
-// déblocage de contact sans casser le système de crédits payants pour
-// tout le monde après.
-const WELCOME_CREDITS_LIMIT = 15;
-const WELCOME_CREDITS_AMOUNT = 5;
 
 // Inscription publique. isAdmin est TOUJOURS false ici, en dur — aucune façon
 // pour un utilisateur normal de s'auto-promouvoir admin via cette route.
@@ -38,12 +32,17 @@ router.post('/signup', (req, res) => {
     passwordHash: hashPassword(password),
     isAdmin: false,
     isVerified: false,
-    creditsContact: isWelcomeEligible ? WELCOME_CREDITS_AMOUNT : 0,
-    creditsMessage: 0
+    creditsContact: isWelcomeEligible ? WELCOME_CONTACT_CREDITS : 0,
+    creditsMessage: isWelcomeEligible ? WELCOME_MESSAGE_CREDITS : 0,
+    welcomeCreditsGranted: isWelcomeEligible
   });
 
   const token = signToken(user);
-  res.status(201).json({ token, user: publicUser(user), welcomeCredits: isWelcomeEligible ? WELCOME_CREDITS_AMOUNT : 0 });
+  res.status(201).json({
+    token,
+    user: publicUser(user),
+    welcomeCredits: isWelcomeEligible ? { contact: WELCOME_CONTACT_CREDITS, message: WELCOME_MESSAGE_CREDITS } : null
+  });
 });
 
 router.post('/login', (req, res) => {

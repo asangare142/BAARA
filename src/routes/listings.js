@@ -92,35 +92,6 @@ router.post('/', requireAuth, (req, res) => {
   res.status(201).json({ listing });
 });
 
-// Débloquer le contact d'un profil standard — consomme 1 crédit contact
-// de L'UTILISATEUR CONNECTÉ. Vérifié côté serveur, impossible à tricher
-// depuis le frontend.
-router.post('/:id/unlock-contact', requireAuth, (req, res) => {
-  const listing = db.findById('listings', req.params.id);
-  if (!listing) return res.status(404).json({ error: 'Profil introuvable.' });
-
-  if (listing.pack && listing.pack !== 'standard') {
-    return res.json({ listing, message: 'Ce profil est déjà visible sans crédit (pack payant).' });
-  }
-
-  const unlockedKey = `unlocked_${listing.id}`;
-  if (req.user.unlockedContacts && req.user.unlockedContacts.includes(listing.id)) {
-    return res.json({ listing, message: 'Déjà débloqué.' });
-  }
-
-  if ((req.user.creditsContact || 0) <= 0) {
-    return res.status(402).json({ error: 'Plus de crédits contact — achète un pack.' });
-  }
-
-  const unlockedContacts = [...(req.user.unlockedContacts || []), listing.id];
-  const updatedUser = db.updateById('users', req.user.id, {
-    creditsContact: req.user.creditsContact - 1,
-    unlockedContacts
-  });
-
-  res.json({ listing, creditsContact: updatedUser.creditsContact });
-});
-
 // Modifier son propre profil — vérifié en base (pas seulement le token),
 // pour empêcher qu'on modifie le profil de quelqu'un d'autre en devinant son id.
 router.put('/:id', requireAuth, (req, res) => {

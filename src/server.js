@@ -17,6 +17,7 @@ app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/packs', require('./routes/packs'));
 app.use('/api/credits', require('./routes/credits'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/conversations', require('./routes/conversations'));
 
 // Frontend statique (public/index.html, app.js, styles.css)
 app.use(express.static(path.join(__dirname, '..', 'public')));

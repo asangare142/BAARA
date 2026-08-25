@@ -13,6 +13,9 @@ let state = {
   listings: [],
   ownListings: [],
   missions: [],
+  conversations: [],
+  activeConversationId: null,
+  activeConversationMessages: [],
   authMode: 'login' // 'login' | 'signup'
 };
 
@@ -73,6 +76,11 @@ async function loadMissions() {
   state.missions = missions;
 }
 
+async function loadConversations() {
+  const { conversations } = await api('/conversations');
+  state.conversations = conversations;
+}
+
 // ---------- Render root ----------
 function render() {
   const app = document.getElementById('app');
@@ -96,6 +104,7 @@ function renderHeader() {
     { id: 'home', label: 'Prestataires' },
     { id: 'profiles', label: 'Mes profils' },
     { id: 'missions', label: 'Missions' },
+    { id: 'messages', label: 'Messages' },
     { id: 'boost', label: 'Booster' },
     { id: 'wallet', label: 'Mes crédits' }
   ];
@@ -118,8 +127,10 @@ function renderHeader() {
 
 function switchView(view) {
   state.view = view;
+  state.activeConversationId = null;
   render();
   if (view === 'admin') loadAdminData();
+  if (view === 'messages') loadConversations().then(render);
 }
 
 function renderFab() {
@@ -218,6 +229,7 @@ function renderView() {
   if (state.view === 'home') return renderHome();
   if (state.view === 'profiles') return renderMyProfiles();
   if (state.view === 'missions') return renderMissions();
+  if (state.view === 'messages') return renderMessagesView();
   if (state.view === 'boost') return renderBoost();
   if (state.view === 'wallet') return renderWallet();
   if (state.view === 'admin') return renderAdmin();
@@ -249,7 +261,7 @@ function renderListingCard(l) {
   if (!l.contactLocked && waNum) {
     contactBtn = `<button class="btn-contact" onclick="window.open('https://wa.me/223${waNum}')">WhatsApp</button>`;
   } else {
-    contactBtn = `<button class="btn-lock" onclick="unlockContact('${l.id}')">🔒 Débloquer le contact (1 crédit)</button>`;
+    contactBtn = `<button class="btn-lock" onclick="startConversation('${l.id}')">💬 Démarrer une conversation (1 crédit)</button>`;
   }
 
   return `
@@ -271,19 +283,6 @@ function renderListingCard(l) {
       </div>
     </div>
   `;
-}
-
-async function unlockContact(listingId) {
-  try {
-    const { creditsContact } = await api(`/listings/${listingId}/unlock-contact`, { method: 'POST' });
-    if (creditsContact !== undefined) state.user.creditsContact = creditsContact;
-    showToast('Contact débloqué !');
-    await loadListings();
-    render();
-  } catch (e) {
-    if (e.message.includes('crédits')) { showToast(e.message); switchView('wallet'); }
-    else showToast(e.message);
-  }
 }
 
 function renderMyProfiles() {
@@ -361,6 +360,82 @@ function confirmDeleteMission(id) {
       render();
     } catch(e){ showToast(e.message); }
   });
+}
+
+// ---------- Messagerie interne ----------
+async function startConversation(listingId) {
+  try {
+    const { conversation, creditsMessage } = await api('/conversations', { method:'POST', body: JSON.stringify({ listingId }) });
+    if (creditsMessage !== undefined) state.user.creditsMessage = creditsMessage;
+    await loadConversations();
+    await openConversation(conversation.id);
+    switchView('messages');
+  } catch (e) {
+    if (e.message.includes('crédits')) { showToast(e.message); switchView('wallet'); }
+    else showToast(e.message);
+  }
+}
+
+async function openConversation(id) {
+  state.activeConversationId = id;
+  const { messages } = await api(`/conversations/${id}/messages`);
+  state.activeConversationMessages = messages;
+  render();
+  const thread = document.getElementById('msgThread');
+  if (thread) thread.scrollTop = thread.scrollHeight;
+}
+
+async function sendConversationMessage() {
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  try {
+    await api(`/conversations/${state.activeConversationId}/messages`, { method:'POST', body: JSON.stringify({ text }) });
+    const { messages } = await api(`/conversations/${state.activeConversationId}/messages`);
+    state.activeConversationMessages = messages;
+    await loadConversations();
+    render();
+    const thread = document.getElementById('msgThread');
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  } catch (e) { showToast(e.message); }
+}
+
+function renderMessagesView() {
+  if (state.activeConversationId) {
+    const conv = state.conversations.find(c => c.id === state.activeConversationId);
+    if (!conv) { state.activeConversationId = null; return renderMessagesView(); }
+    const otherName = conv.clientUserId === state.user.id ? conv.listingNom : conv.clientNom;
+    return `
+      <div class="section-label"><a onclick="state.activeConversationId=null; render();" style="cursor:pointer; color:var(--indigo);">← Retour aux conversations</a></div>
+      <div class="mission-card" style="margin-bottom:10px;"><h3>${escapeHtml(otherName)}</h3></div>
+      <div id="msgThread" style="max-height:50vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:4px 0;">
+        ${state.activeConversationMessages.length === 0 ? `<div class="empty">Aucun message pour l'instant — lance la conversation.</div>` :
+          state.activeConversationMessages.map(m => {
+            const mine = m.senderId === state.user.id;
+            return `<div style="align-self:${mine?'flex-end':'flex-start'}; max-width:80%; background:${mine?'var(--indigo)':'var(--white)'}; color:${mine?'var(--white)':'var(--ink)'}; border:1px solid var(--line); border-radius:14px; padding:9px 13px; font-size:13.5px;">${escapeHtml(m.text)}</div>`;
+          }).join('')}
+      </div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <input id="msgInput" type="text" placeholder="Écris ton message..." style="flex:1; padding:11px 12px; border-radius:9px; border:1px solid var(--line); font-size:14px;" onkeydown="if(event.key==='Enter') sendConversationMessage();">
+        <button class="btn-msg" onclick="sendConversationMessage()">Envoyer</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="section-label">Mes conversations</div>
+    ${state.conversations.length === 0 ? `<div class="empty">Aucune conversation pour l'instant. Démarre-en une depuis un profil prestataire.</div>` :
+      state.conversations.map(c => {
+        const otherName = c.clientUserId === state.user.id ? c.listingNom : c.clientNom;
+        return `
+        <div class="mission-card" style="cursor:pointer;" onclick="openConversation('${c.id}')">
+          <h3>${escapeHtml(otherName)}</h3>
+          <div class="mission-desc">${escapeHtml(c.lastMessage || 'Aucun message pour l\'instant.')}</div>
+        </div>
+      `;
+      }).join('')}
+  `;
 }
 
 function renderBoost() {

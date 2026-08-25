@@ -143,6 +143,16 @@ router.delete('/users/:id', (req, res) => {
   db.getAll('listings')
     .filter((l) => l.userId === target.id)
     .forEach((l) => db.deleteById('listings', l.id));
+
+  db.getAll('conversations')
+    .filter((c) => c.clientUserId === target.id || c.providerUserId === target.id)
+    .forEach((c) => {
+      db.getAll('messages')
+        .filter((m) => m.conversationId === c.id)
+        .forEach((m) => db.deleteById('messages', m.id));
+      db.deleteById('conversations', c.id);
+    });
+
   db.deleteById('users', target.id);
   res.json({ ok: true });
 });

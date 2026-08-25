@@ -275,7 +275,8 @@ function renderListingCard(l) {
 
 async function unlockContact(listingId) {
   try {
-    await api(`/listings/${listingId}/unlock-contact`, { method: 'POST' });
+    const { creditsContact } = await api(`/listings/${listingId}/unlock-contact`, { method: 'POST' });
+    if (creditsContact !== undefined) state.user.creditsContact = creditsContact;
     showToast('Contact débloqué !');
     await loadListings();
     render();

@@ -1,13 +1,24 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../auth');
+const { requireAuth, optionalAuth } = require('../auth');
 const { CATEGORIES } = require('../categories');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+// Le numéro d'un prestataire qui a proposé n'est renvoyé qu'au client
+// propriétaire de la mission — pas à tout le monde qui parcourt la liste.
+router.get('/', optionalAuth, (req, res) => {
   const missions = db.getAll('missions').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  res.json({ missions });
+  const enriched = missions.map((m) => {
+    const isOwner = req.user && req.user.id === m.userId;
+    const proposals = (m.proposals || []).map((p) => {
+      if (!isOwner) return { ...p, telephone: null };
+      const listing = db.findById('listings', p.listingId);
+      return { ...p, telephone: listing ? listing.telephone : null };
+    });
+    return { ...m, proposals };
+  });
+  res.json({ missions: enriched });
 });
 
 router.post('/', requireAuth, (req, res) => {
@@ -66,6 +77,17 @@ router.post('/:id/proposals', requireAuth, (req, res) => {
   db.updateById('listings', listing.id, { connexionsUsed: used + 1 });
 
   res.status(201).json({ mission: updatedMission });
+});
+
+// Supprimer sa propre mission — vérifié en base, pas seulement le token.
+router.delete('/:id', requireAuth, (req, res) => {
+  const mission = db.findById('missions', req.params.id);
+  if (!mission) return res.status(404).json({ error: 'Mission introuvable.' });
+  if (mission.userId !== req.user.id) {
+    return res.status(403).json({ error: 'Tu ne peux supprimer que tes propres missions.' });
+  }
+  db.deleteById('missions', mission.id);
+  res.json({ ok: true });
 });
 
 module.exports = router;

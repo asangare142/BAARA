@@ -157,4 +157,17 @@ router.delete('/users/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// --- Suppression d'une conversation (modération, ou nettoyage de résidus
+// laissés par un compte supprimé avant que ce nettoyage n'existe) ---
+router.delete('/conversations/:id', (req, res) => {
+  const conversation = db.findById('conversations', req.params.id);
+  if (!conversation) return res.status(404).json({ error: 'Conversation introuvable.' });
+
+  db.getAll('messages')
+    .filter((m) => m.conversationId === conversation.id)
+    .forEach((m) => db.deleteById('messages', m.id));
+  db.deleteById('conversations', conversation.id);
+  res.json({ ok: true });
+});
+
 module.exports = router;

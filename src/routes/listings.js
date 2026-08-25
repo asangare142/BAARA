@@ -5,14 +5,11 @@ const { CATEGORIES, PACKS, FREE_CONNEXIONS } = require('../categories');
 
 const router = express.Router();
 
-function escapeForClient(l, viewerUnlockedSet) {
-  // Le numéro n'est renvoyé que si le profil est boosté (pack payant)
-  // ou si le visiteur a déjà débloqué ce contact. Sinon on le masque
-  // côté SERVEUR (pas juste côté affichage) — c'est la vraie sécurité :
-  // même quelqu'un qui inspecte le réseau ne voit pas le numéro.
-  const isPaidPack = l.pack && l.pack !== 'standard';
-  const isUnlocked = viewerUnlockedSet && viewerUnlockedSet.has(l.id);
-  const canSeePhone = isPaidPack || isUnlocked;
+function escapeForClient(l) {
+  // Le numéro n'est renvoyé que si le profil est boosté (pack payant).
+  // Les profils standard passent uniquement par la messagerie interne
+  // (voir /api/conversations) — masqué côté SERVEUR, pas juste à l'affichage.
+  const canSeePhone = !!(l.pack && l.pack !== 'standard');
   return {
     ...l,
     telephone: canSeePhone ? l.telephone : null,
@@ -45,8 +42,7 @@ router.get('/', optionalAuth, (req, res) => {
     return (b.createdAt || 0) - (a.createdAt || 0);
   });
 
-  const unlockedSet = new Set(req.user ? (req.user.unlockedContacts || []) : []);
-  res.json({ listings: listings.map((l) => escapeForClient(l, unlockedSet)), categories: CATEGORIES });
+  res.json({ listings: listings.map(escapeForClient), categories: CATEGORIES });
 });
 
 // Mes profils — y compris ceux non vérifiés ou masqués par un admin,
@@ -59,8 +55,7 @@ router.get('/mine', requireAuth, (req, res) => {
 router.get('/:id', optionalAuth, (req, res) => {
   const listing = db.findById('listings', req.params.id);
   if (!listing) return res.status(404).json({ error: 'Profil introuvable.' });
-  const unlockedSet = new Set(req.user ? (req.user.unlockedContacts || []) : []);
-  res.json({ listing: escapeForClient(listing, unlockedSet) });
+  res.json({ listing: escapeForClient(listing) });
 });
 
 // Créer un profil prestataire — nécessite d'être connecté (c'est TON compte

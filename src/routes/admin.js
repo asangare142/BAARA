@@ -54,7 +54,8 @@ router.get('/pack-requests', (req, res) => {
 router.post('/pack-requests/:id/approve', (req, res) => {
   const request = db.findById('packRequests', req.params.id);
   if (!request) return res.status(404).json({ error: 'Demande introuvable.' });
-  db.updateById('listings', request.listingId, { pack: request.pack });
+  // Un pack payé écrase le cadeau de bienvenue éventuel — plus de compte à rebours.
+  db.updateById('listings', request.listingId, { pack: request.pack, welcomePack: false, packExpiresAt: null });
   const updated = db.updateById('packRequests', request.id, { status: 'approved' });
   res.json({ request: updated });
 });

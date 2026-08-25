@@ -5,6 +5,21 @@ const { CATEGORIES, PACKS, FREE_CONNEXIONS } = require('../categories');
 
 const router = express.Router();
 
+// Cadeau de bienvenue : les 15 premiers profils prestataire créés reçoivent
+// le pack Business gratuitement pendant 15 jours.
+const WELCOME_PACK = 'business';
+const WELCOME_PACK_LIMIT = 15;
+const WELCOME_PACK_DURATION_MS = 15 * 24 * 60 * 60 * 1000;
+
+// Un pack "cadeau" expiré redevient standard — vérifié à chaque lecture
+// plutôt que par une tâche planifiée, pas besoin de plus pour ce volume.
+function expirePackIfNeeded(listing) {
+  if (listing.welcomePack && listing.packExpiresAt && Date.now() > listing.packExpiresAt) {
+    return db.updateById('listings', listing.id, { pack: 'standard', welcomePack: false, packExpiresAt: null });
+  }
+  return listing;
+}
+
 function escapeForClient(l, viewerUnlockedSet) {
   // Le numéro n'est renvoyé que si le profil est boosté (pack payant)
   // ou si le visiteur a déjà débloqué ce contact. Sinon on le masque
@@ -24,7 +39,7 @@ function escapeForClient(l, viewerUnlockedSet) {
 // parcourir est public), mais le numéro reste masqué si non débloqué.
 router.get('/', optionalAuth, (req, res) => {
   const { q, categorie } = req.query;
-  let listings = db.getAll('listings').filter((l) => l.status !== 'hidden');
+  let listings = db.getAll('listings').filter((l) => l.status !== 'hidden').map(expirePackIfNeeded);
 
   if (categorie && categorie !== 'Tout') {
     listings = listings.filter((l) => l.categorie === categorie);
@@ -52,13 +67,14 @@ router.get('/', optionalAuth, (req, res) => {
 // Mes profils — y compris ceux non vérifiés ou masqués par un admin,
 // puisque le propriétaire doit toujours pouvoir les retrouver et les gérer.
 router.get('/mine', requireAuth, (req, res) => {
-  const listings = db.getAll('listings').filter((l) => l.userId === req.user.id);
+  const listings = db.getAll('listings').filter((l) => l.userId === req.user.id).map(expirePackIfNeeded);
   res.json({ listings });
 });
 
 router.get('/:id', optionalAuth, (req, res) => {
-  const listing = db.findById('listings', req.params.id);
+  let listing = db.findById('listings', req.params.id);
   if (!listing) return res.status(404).json({ error: 'Profil introuvable.' });
+  listing = expirePackIfNeeded(listing);
   const unlockedSet = new Set(req.user ? (req.user.unlockedContacts || []) : []);
   res.json({ listing: escapeForClient(listing, unlockedSet) });
 });
@@ -72,6 +88,8 @@ router.post('/', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Catégorie, compétence et quartier sont obligatoires.' });
   }
 
+  const isWelcomeEligible = db.getAll('listings').length < WELCOME_PACK_LIMIT;
+
   const listing = db.insert('listings', {
     userId: req.user.id,
     nom: req.user.nom,
@@ -81,7 +99,9 @@ router.post('/', requireAuth, (req, res) => {
     tarif: tarif ? String(tarif).trim() : '',
     telephone: telephone ? String(telephone).trim() : req.user.telephone,
     description: description ? String(description).trim() : '',
-    pack: 'standard',
+    pack: isWelcomeEligible ? WELCOME_PACK : 'standard',
+    welcomePack: isWelcomeEligible,
+    packExpiresAt: isWelcomeEligible ? Date.now() + WELCOME_PACK_DURATION_MS : null,
     connexionsUsed: 0,
     connexionsLimit: FREE_CONNEXIONS,
     ratingSum: 0,
@@ -89,7 +109,7 @@ router.post('/', requireAuth, (req, res) => {
     status: 'approved'
   });
 
-  res.status(201).json({ listing });
+  res.status(201).json({ listing, welcomePack: isWelcomeEligible });
 });
 
 // Débloquer le contact d'un profil standard — consomme 1 crédit contact
